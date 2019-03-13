@@ -1,10 +1,14 @@
+const { validationResult } = require('express-validator/check');
 const Product = require('../models/product');
 
 exports.getAddProduct = (req, res, next) => {
   res.render('admin/edit-product', {
     pageTitle: 'Add Product',
     path: '/admin/add-product',
-    editing: false
+    hasError: false,
+    editing: false,
+    errorMessage: null,
+    validationError: []
     // isAuthenticated: req.session.isAuthenticated
   });
 };
@@ -14,7 +18,22 @@ exports.postAddProduct = (req, res, next) => {
   const imageUrl = req.body.imageUrl;
   const price = req.body.price;
   const description = req.body.description;
-  
+
+  const errors = validationResult(req);
+
+  if(!errors.isEmpty()) {
+
+    return res.status(422).render('admin/edit-product', {
+      pageTitle: 'Add Product',
+      path: '/admin/add-product',
+      hasError: true,
+      editing: false,
+      product: { title, imageUrl, price, description } ,
+      errorMessage: errors.array()[0].msg,
+      validationError: errors.array()
+    });
+  }
+
   const product = new Product({
     title: title,
     price: price,
@@ -56,8 +75,11 @@ exports.getEditProduct = (req, res, next) => {
       res.render('admin/edit-product', {
         pageTitle: 'Edit Product',
         path: '/admin/edit-product',
+        hasError: false,
         editing: editMode,
         product: product,
+        errorMessage: null,
+        validationError: []
        // isAuthenticated: req.session.isAuthenticated
       });
     })
@@ -70,6 +92,47 @@ exports.postEditProduct = (req, res, next) => {
   const updatedPrice = req.body.price;
   const updatedImageUrl = req.body.imageUrl;
   const updatedDesc = req.body.description;
+
+  const errors = validationResult(req);
+
+  if(!errors.isEmpty()) {
+
+    return res.status(422).render('admin/edit-product', {
+      pageTitle: 'Edit Product',
+      path: '/admin/edit-product',
+      hasError: true,
+      editing: true,
+      product: { 
+        title: updatedTitle, 
+        imageUrl: updatedImageUrl, 
+        price: updatedPrice, 
+        description: updatedDesc,
+
+        // ********************
+        /* 
+            <% if(editing) { %>
+                <input type="hidden" value="<%= product._id %>" name="productId">
+            <% } %>
+        */
+        // when we have an error at first,
+        // product._id above in "edit-product.ejs" is not available
+        //    because in this render function, product instance from Product model 
+        //    like in "no error render of getEditProduct()"
+        //    is not available. An error is not generated as long as still validation error exists
+        //    and stops it to run the next line.
+        // 
+        // However, it will generate an error, when the validation has no error at all.
+        // First of all, the form request won't start from the getEditProduct() route.
+        // The from request will start the error-based render page above in this route.
+        //  Therefore, the front-end still does not have product._id and mongoose model
+        //  does not dave this default field in the data base.
+        // In result, we need to put _id here.
+        _id: prodId },
+      errorMessage: errors.array()[0].msg,
+      validationError: errors.array()
+
+    });
+  }
 
   Product.findById(prodId)
     .then(product => {

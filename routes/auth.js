@@ -47,6 +47,11 @@ router.post('/signup',
         check('email')
         .isEmail()
         .withMessage('Please enter a valid email.')
+        // sanitizing the user input.
+        // for instance, it changes the upper letter into the lower case
+        .normalizeEmail()
+        // sanitiziang...
+        .trim()
 
         // customize by using callback and javascript error message.
         // It only return true or false (boolean value)
@@ -122,53 +127,100 @@ router.post('/signup',
             // Here is only with error of isLength()
             // .withMessage('Please enter a password only with numbers and text and with at least 4 characters.')
             
-            .isAlphanumeric(),
+            .isAlphanumeric()
+            .trim(),
             
             // Here is with isLength() and is Alpahnumeric()
             // Error message should be a sort of accumulated
             // .withMessage('Please enter a password only with numbers and text and with at least 4 characters.')
         body('confirmPassword')
-        .custom((value, {req}) => {
-            if(value !== req.body.password)
-            throw new Error('The passwords have to be identified.');
-            
-            return true;
-        })
+            .trim()
+            .custom((value, {req}) => {
+                if(value !== req.body.password)
+                throw new Error('The passwords have to be identified.');
+                
+                return true;
+            })
         
     ], 
     postSignup);
 
+// [My Solution]
+// router.post('/login', 
+//         // no multi-validation check
+//         body('email')
+//         .custom((value, { req }) => {
+
+//             // custom return            
+//             return User.findOne({ email: value })
+//                 .then(user => {
+                    
+//                     if(!user) {
+//                         // when return Promise.reject(), custom() will terminate this callback.
+//                         //  therefore, res.redirect('/login') is not required. 
+//                         return Promise.reject('Unable to identify the email address.');         
+//                     }
+                    
+//                     // return is required because the function parameter(callback) of custom() requires return.
+//                     //  when if(user === true), what is supposed to return?
+//                     //  return Promise.reject is a return of callback(resolve) of promise, not custom()'s functional parameter.
+//                     return bcrypt.compare(req.body.password, user.password)
+//                         .then(isMatched => {
+//                             if(!isMatched) {
+//                                 return Promise.reject('Unable to find the password');
+//                            }
+//                         })
+//                         // no catch is necessary here as well
+//                         //  because cusom will treat catch
+//                         //  when it returns Promise.reject()
+                    
+//                 })
+
+//         }),
+
+//[Max's Solution]
 router.post('/login', 
         // no multi-validation check
-        body('email')
-        .custom((value, { req }) => {
+       [ 
+            body('email')
+                .isEmail()
+                .withMessage('Please enter your valid email address.')
+                .normalizeEmail()
+                .trim(),
 
-            // custom return            
-            return User.findOne({ email: value })
-                .then(user => {
-                    
-                    if(!user) {
-                        // when return Promise.reject(), custom() will terminate this callback.
-                        //  therefore, res.redirect('/login') is not required. 
-                        return Promise.reject('Unable to identify the email address.');         
-                    }
-                    
-                    // return is required because the function parameter(callback) of custom() requires return.
-                    //  when if(user === true), what is supposed to return?
-                    //  return Promise.reject is a return of callback(resolve) of promise, not custom()'s functional parameter.
-                    return bcrypt.compare(req.body.password, user.password)
-                        .then(isMatched => {
-                            if(!isMatched) {
-                                return Promise.reject('Unable to find the password');
-                           }
-                        })
-                        // no catch is necessary here as well
-                        //  because cusom will treat catch
-                        //  when it returns Promise.reject()
-                    
-                })
+            body('password', 'Please enter min 4 characters including texts and numers')
+                .isLength({ min: 4 })
+                .isAlphanumeric()
+                .trim()
+            // .custom((value, { req }) => {
 
-        }),
+            //     // custom return            
+            //     return User.findOne({ email: value })
+            //         .then(user => {
+                        
+            //             if(!user) {
+            //                 // when return Promise.reject(), custom() will terminate this callback.
+            //                 //  therefore, res.redirect('/login') is not required. 
+            //                 return Promise.reject('Unable to identify the email address.');         
+            //             }
+                        
+            //             // return is required because the function parameter(callback) of custom() requires return.
+            //             //  when if(user === true), what is supposed to return?
+            //             //  return Promise.reject is a return of callback(resolve) of promise, not custom()'s functional parameter.
+            //             return bcrypt.compare(req.body.password, user.password)
+            //                 .then(isMatched => {
+            //                     if(!isMatched) {
+            //                         return Promise.reject('Unable to find the password');
+            //                 }
+            //                 })
+            //                 // no catch is necessary here as well
+            //                 //  because cusom will treat catch
+            //                 //  when it returns Promise.reject()
+                        
+            //         })
+
+            // })
+       ],
     postLogin);
 
 

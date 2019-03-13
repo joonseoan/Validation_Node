@@ -38,7 +38,12 @@ exports.getLogin = (req, res, next) => {
   res.render('auth/login', {
     path: '/login',
     pageTitle: 'User Login',
-    errorMessage: message
+    errorMessage: message,
+    oldInput: { 
+        email: '', 
+        password: ''
+    },
+    validationErrors: []
   });
 };
 
@@ -50,12 +55,45 @@ exports.getSignup = (req, res, next) => {
     res.render('auth/signup', {
         path: '/signup',
         pageTitle: 'Signup',
-        errorMessage: message
+        errorMessage: message,
+        oldInput: {
+            email: '',
+            password: '',
+            confirmPassword: ''
+        },
+        validationErrors: []
+        
     // isAuthenticated: false
     });
 };
 
 exports.postLogin = (req, res, next) => {
+
+    // [My Solution - all functions iside of this callback]
+    // const errors = validationResult(req);
+
+    // if(!errors.isEmpty()) {
+
+    //     return res.status(422).render('auth/login', {
+    //         path: '/login',
+    //         pageTitle: 'User Login',
+    //         errorMessage: errors.array()[0].msg
+    //     });
+    // }
+    
+    // User.findOne({ email: req.body.email })
+    //     .then(user => {
+    //         req.session.isAuthenticated = true;
+    //         req.session.user = user;
+    //         req.session.save(err => {
+    //             res.redirect('/');
+    //         }); 
+    //     })
+    //     .catch(e => console.error(e));
+
+    // [Max's solution - all functions iside of this callback]
+
+    const { email, password } = req.body;
 
     const errors = validationResult(req);
 
@@ -64,61 +102,74 @@ exports.postLogin = (req, res, next) => {
         return res.status(422).render('auth/login', {
             path: '/login',
             pageTitle: 'User Login',
-            errorMessage: errors.array()[0].msg
+            errorMessage: errors.array()[0].msg,
+            oldInput: { email, password },
+            validationErrors: errors.array()
+
         });
     }
     
-    User.findOne({ email: req.body.email })
+    User.findOne({ email })
         .then(user => {
-            req.session.isAuthenticated = true;
-            req.session.user = user;
-            req.session.save(err => {
-                res.redirect('/');
-            }); 
-        })
-        .catch(e => console.error(e));
+            if(!user) {
 
-
-    // const { email, password } = req.body;
-
-    // User.findOne({ email })
-    //     .then(user => {
-    //         if(!user) { 
-    //             // must be spotted res.redirect******************
-    //             req.flash('error', 'Invalid email');
-    //             return res.redirect('/login'); 
-    //         }
-    //         // return boolean
-    //         bcrypt.compare(password, user.password)
-    //             .then(isMatched => {
-    //                 // ************ here we can initilize session!!!!!
-    //                 if(isMatched) { 
-    //                     req.session.isAuthenticated = true;
-    //                     req.session.user = user;
-    //                     return req.session.save(err => {
-    //                         res.redirect('/');
-    //                     });
+                // 2)
+                return res.status(422).render('auth/login', {
+                    path: '/login',
+                    pageTitle: 'User Login',
+                    errorMessage: 'Invalid email',
+                    oldInput: { email, password },
+                    validationErrors: [{ param: 'email'}]
+        
+                });
+                
+                
+                // must be spotted res.redirect******************
+                // req.flash('error', 'Invalid email');
+                // return res.redirect('/login'); 
+            }
+            // return boolean
+            bcrypt.compare(password, user.password)
+                .then(isMatched => {
+                    // ************ here we can initilize session!!!!!
+                    if(isMatched) { 
+                        req.session.isAuthenticated = true;
+                        req.session.user = user;
+                        return req.session.save(err => {
+                            res.redirect('/');
+                        });
                     
-    //                 }
-    //                 // must be spotted res.redirect******************
-    //                 req.flash('error', 'Invalid password');
+                    }
 
-    //                 // isMatched === false
-    //                 res.redirect('/login');
-                    
-    //             })
-    //             .catch(e => { 
-    //                 // we can setup redirect in catch block.
-    //                 res.redirect('/login');
-    //                 throw new Error('Unable to find the password.');
-    //             });
+                    return res.status(422).render('auth/login', {
+                        path: '/login',
+                        pageTitle: 'User Login',
+                        errorMessage: 'Invalid password',
+                        oldInput: { email, password },
+                        validationErrors: [{ param: 'password' }]
             
-    //     })
+                    });
+
+
+                    // must be spotted res.redirect******************
+                    // req.flash('error', 'Invalid password');
+
+                    // // isMatched === false
+                    // res.redirect('/login');
+                    
+                })
+                .catch(e => { 
+                    // we can setup redirect in catch block.
+                    res.redirect('/login');
+                    throw new Error('Unable to log you in!.');
+                });
+            
+        })
 
 };
 
 exports.postSignup = (req, res, next) => {
-    const { email, password } = req.body;
+    const { email, password, confirmPassword } = req.body;
 
     // validationResults will retrieve all errors 
     //  which is verified by check() on "req"
@@ -145,7 +196,9 @@ exports.postSignup = (req, res, next) => {
 
             // Down below, we have another error message tool name flash
             // But it should be used in a different way.
-            errorMessage: errors.array()[0].msg
+            errorMessage: errors.array()[0].msg,
+            oldInput: { email, password, confirmPassword },
+            validationErrors: errors.array()
         });
     }
 
